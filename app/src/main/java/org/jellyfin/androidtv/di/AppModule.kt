@@ -198,6 +198,7 @@ val appModule = module {
 	factory(named("user")) { (userId: String) -> JellyseerrPreferences(androidContext(), userId) }
 	single<JellyseerrRepository> { JellyseerrRepositoryImpl(androidContext(), get(named("global")), get()) }
 	single { MdbListRepository(get<OkHttpFactory>().createClient(get()), get()) }
+	single { org.jellyfin.androidtv.data.repository.TentacleRepository(get(), get(), get<OkHttpFactory>().createClient(get())) }
 	single { TmdbRepository(get<OkHttpFactory>().createClient(get()), get(), get()) }
 
 	viewModel { StartupViewModel(get(), get(), get(), get()) }
