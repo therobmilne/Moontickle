@@ -100,6 +100,7 @@ class DiscoverFragment : Fragment() {
 			val scope = rememberCoroutineScope()
 			val searchInputFocusRequester = remember { FocusRequester() }
 			val contentFocusRequester = remember { FocusRequester() }
+			var searchJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
 
 			LaunchedEffect(Unit) {
 				sections = tentacleRepository.getDiscoverSections()
@@ -131,10 +132,19 @@ class DiscoverFragment : Fragment() {
 						onQueryChange = { searchQuery = it },
 						onQuerySubmit = {
 							if (searchQuery.isNotBlank()) {
+								searchJob?.cancel()
 								isSearching = true
 								hasSearched = true
-								scope.launch {
-									searchResults = tentacleRepository.searchDiscover(searchQuery)
+								searchJob = scope.launch {
+									val results = try {
+										kotlinx.coroutines.withTimeoutOrNull(10_000L) {
+											tentacleRepository.searchDiscover(searchQuery)
+										} ?: emptyList()
+									} catch (e: Exception) {
+										timber.log.Timber.w(e, "Discover search failed for '$searchQuery'")
+										emptyList()
+									}
+									searchResults = results
 									isSearching = false
 									try {
 										contentFocusRequester.requestFocus()

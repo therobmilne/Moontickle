@@ -209,11 +209,11 @@ class ScheduleBrowseFragment : Fragment() {
 				Box(
 					modifier = Modifier
 						.fillMaxWidth()
-						.padding(top = 40.dp),
+						.padding(top = 40.dp, start = 60.dp, end = 60.dp),
 					contentAlignment = Alignment.Center,
 				) {
 					Text(
-						text = stringResource(R.string.lbl_no_items),
+						text = stringResource(R.string.no_scheduled_recordings),
 						fontSize = 16.sp,
 						color = Color.White.copy(alpha = 0.5f),
 					)

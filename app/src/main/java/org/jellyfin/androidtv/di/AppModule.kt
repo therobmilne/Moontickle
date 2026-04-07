@@ -221,7 +221,7 @@ val appModule = module {
 	viewModel { org.jellyfin.androidtv.ui.browsing.v2.RecordingsBrowseViewModel(get()) }
 	viewModel { org.jellyfin.androidtv.ui.browsing.v2.ScheduleBrowseViewModel(get()) }
 	viewModel { org.jellyfin.androidtv.ui.browsing.v2.SeriesRecordingsBrowseViewModel(get()) }
-	single { MediaBarSlideshowViewModel(get(), get(), get(), get(), androidContext(), get(), get(), get(), get()) }
+	single { MediaBarSlideshowViewModel(get(), get(), get(), get(), androidContext(), get(), get(), get(), get(), get()) }
 
 	// SyncPlay
 	single { SyncPlayManager(androidContext(), get(), get()) }

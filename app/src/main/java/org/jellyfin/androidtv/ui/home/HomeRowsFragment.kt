@@ -187,49 +187,53 @@ class HomeRowsFragment : RowsSupportFragment(), AudioEventListener, View.OnKeyLi
 			}
 
 			// Try to load Tentacle dashboard sections (plugin-controlled row order)
-			val tentacleAvailable = tentacleRepository.checkAvailable()
+			val tentacleAvailable = kotlinx.coroutines.withTimeoutOrNull(3000L) {
+				tentacleRepository.checkAvailable()
+			} ?: false
 			var tentacleRowsLoaded = false
 
 			if (tentacleAvailable) {
-				val sectionsResponse = tentacleRepository.getSections()
-				if (sectionsResponse != null) {
-					val allSections = sectionsResponse.sections.filter { it.type == "row" || it.type == "builtin" }
+				kotlinx.coroutines.withTimeoutOrNull(8000L) {
+					val sectionsResponse = tentacleRepository.getSections()
+					if (sectionsResponse != null) {
+						val allSections = sectionsResponse.sections.filter { it.type == "row" || it.type == "builtin" }
 
-					if (allSections.isNotEmpty()) {
-						// Pre-fetch playlist row items in parallel
-						val tentacleRowData = allSections
-							.filter { it.type == "row" && !it.playlistId.isNullOrEmpty() }
-							.map { section ->
-								async {
-									TentacleRowData(
-										title = section.displayText,
-										playlistId = section.playlistId!!,
-										items = tentacleRepository.getSectionItems(section.playlistId),
-									)
-								}
-							}
-							.awaitAll()
-							.filter { it.items.isNotEmpty() }
-
-						val tentacleMap = tentacleRowData.associateBy { it.playlistId }
-						val mergeCW = userPreferences[UserPreferences.mergeContinueWatchingNextUp]
-
-						// Render sections in dashboard order
-						for (section in allSections) {
-							if (!isActive) return@launch
-							when (section.type) {
-								"row" -> {
-									val playlistId = section.playlistId ?: continue
-									tentacleMap[playlistId]?.let { data ->
-										rows.add(HomeFragmentTentacleRow(listOf(data)))
+						if (allSections.isNotEmpty()) {
+							// Pre-fetch playlist row items in parallel
+							val tentacleRowData = allSections
+								.filter { it.type == "row" && !it.playlistId.isNullOrEmpty() }
+								.map { section ->
+									async {
+										TentacleRowData(
+											title = section.displayText,
+											playlistId = section.playlistId!!,
+											items = tentacleRepository.getSectionItems(section.playlistId),
+										)
 									}
 								}
-								"builtin" -> {
-									addBuiltInSection(rows, section.sectionId ?: continue, includeLiveTvRows, cachedViews, mergeCW)
+								.awaitAll()
+								.filter { it.items.isNotEmpty() }
+
+							val tentacleMap = tentacleRowData.associateBy { it.playlistId }
+							val mergeCW = userPreferences[UserPreferences.mergeContinueWatchingNextUp]
+
+							// Render sections in dashboard order
+							for (section in allSections) {
+								if (!isActive) return@withTimeoutOrNull
+								when (section.type) {
+									"row" -> {
+										val playlistId = section.playlistId ?: continue
+										tentacleMap[playlistId]?.let { data ->
+											rows.add(HomeFragmentTentacleRow(listOf(data)))
+										}
+									}
+									"builtin" -> {
+										addBuiltInSection(rows, section.sectionId ?: continue, includeLiveTvRows, cachedViews, mergeCW)
+									}
 								}
 							}
+							tentacleRowsLoaded = rows.size > (if (userSettingPreferences[UserSettingPreferences.mediaBarEnabled]) 1 else 0)
 						}
-						tentacleRowsLoaded = rows.size > (if (userSettingPreferences[UserSettingPreferences.mediaBarEnabled]) 1 else 0)
 					}
 				}
 			}

@@ -187,6 +187,8 @@
     <string name="sum_enable_cinema_mode">Play available intros and previews before starting a movie</string>
     <string name="lbl_playlist">Playlist</string>
     <string name="lbl_playlists">Playlists</string>
+    <string name="lbl_streaming_platforms">Streaming Platforms</string>
+    <string name="no_scheduled_recordings">No scheduled recordings.\nTo record a show, open the Live TV Guide, select a program, and choose \"Record\" or \"Record Series\".</string>
     <string name="lbl_watch_list">Watch List</string>
     <string name="msg_items_added">" items added"</string>
     <string name="lbl_add_to_queue">Add to queue</string>

@@ -65,7 +65,17 @@ class VideoPlayerFragment : Fragment() {
 	override fun onResume() {
 		super.onResume()
 
-		playbackManager.state.unpause()
+		lifecycleScope.launch {
+			// Wait for the queue to have items before unpausing
+			val hasItems = playbackManager.queue.entry.value != null
+			if (hasItems) {
+				playbackManager.state.unpause()
+			} else {
+				// Queue not ready yet — wait briefly then unpause
+				kotlinx.coroutines.delay(300)
+				playbackManager.state.unpause()
+			}
+		}
 	}
 
 	override fun onStop() {

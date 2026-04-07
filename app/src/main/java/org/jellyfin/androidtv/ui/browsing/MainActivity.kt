@@ -61,14 +61,42 @@ class MainActivity : FragmentActivity() {
 
 	private lateinit var binding: ActivityMainBinding
 	private val showExitDialog = mutableStateOf(false)
+	private var lastBackAtTopTime = 0L
 
 	private val backPressedCallback = object : OnBackPressedCallback(false) {
 		override fun handleOnBackPressed() {
 			if (navigationRepository.canGoBack) {
 				navigationRepository.goBack()
-			} else {
-				// User is on home screen, show exit confirmation
+				return
+			}
+
+			// We're on the home screen with no back history
+			// Find the HomeFragment via the DestinationFragmentView's fragment tag
+			val homeFragment = supportFragmentManager.findFragmentByTag("content")
+				as? org.jellyfin.androidtv.ui.home.HomeFragment
+
+			if (homeFragment != null) {
+				val rowsFragment = homeFragment.childFragmentManager
+					.findFragmentById(R.id.rowsFragment) as? org.jellyfin.androidtv.ui.home.HomeRowsFragment
+
+				if (rowsFragment != null && rowsFragment.selectedPosition > 0) {
+					rowsFragment.setSelectedPosition(0, true)
+					lastBackAtTopTime = 0L
+					return
+				}
+			}
+
+			// Already at top or couldn't find the fragment — double-back-to-exit
+			val now = System.currentTimeMillis()
+			if (now - lastBackAtTopTime < 2000L) {
 				showExitConfirmation()
+			} else {
+				lastBackAtTopTime = now
+				// Try to focus the navbar
+				homeFragment?.view?.let { view ->
+					view.findViewById<android.view.View>(R.id.toolbar)?.requestFocus()
+						?: view.findViewById<android.view.View>(R.id.sidebar)?.requestFocus()
+				}
 			}
 		}
 	}

@@ -68,9 +68,12 @@ android {
 
 	buildTypes {
 		release {
-			// Use signing config if available
-			if (signingConfigs.names.contains("release")) {
-				signingConfig = signingConfigs.getByName("release")
+			// Use release signing if keystore.properties exists, otherwise use debug signing for sideloading
+			val keystorePropertiesFile = rootProject.file("keystore.properties")
+			signingConfig = if (keystorePropertiesFile.exists()) {
+				signingConfigs.getByName("release")
+			} else {
+				signingConfigs.getByName("debug")
 			}
 
 			isDebuggable = false
@@ -84,7 +87,7 @@ android {
 			resValue("string", "app_search_suggest_intent_data", "content://${defaultConfig.applicationId}.content/intent")
 
 			// Set flavored application name
-			resValue("string", "app_name", "Moonfin")
+			resValue("string", "app_name", "MoonTickle")
 
 			buildConfigField("boolean", "DEVELOPMENT", "false")
 		}
@@ -103,7 +106,7 @@ android {
 			resValue("string", "app_search_suggest_intent_data", "content://${debugAppId}.content/intent")
 
 			// Set flavored application name
-			resValue("string", "app_name", "Moonfin Debug")
+			resValue("string", "app_name", "MoonTickle Debug")
 
 			buildConfigField("boolean", "DEVELOPMENT", (defaultConfig.versionCode!! < 100).toString())
 		}
@@ -121,7 +124,7 @@ android {
 	}
 }
 
-base.archivesName.set("moonfin-androidtv-v${project.getVersionName()}")
+base.archivesName.set("moontickle-androidtv-v${project.getVersionName()}")
 
 tasks.register("versionTxt") {
 	val path = layout.buildDirectory.asFile.get().resolve("version.txt")

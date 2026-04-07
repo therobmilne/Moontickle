@@ -59,6 +59,7 @@ class MediaBarSlideshowViewModel(
 	private val multiServerRepository: MultiServerRepository,
 	private val parentalControlsRepository: ParentalControlsRepository,
 	private val userPreferences: UserPreferences,
+	private val tentacleRepository: org.jellyfin.androidtv.data.repository.TentacleRepository,
 ) : ViewModel() {
 	private fun getConfig() = MediaBarConfig(
 		maxItems = userSettingPreferences[UserSettingPreferences.mediaBarItemCount].toIntOrNull() ?: 10
@@ -355,6 +356,73 @@ class MediaBarSlideshowViewModel(
 		loadingJob = viewModelScope.launch {
 		try {
 			_state.value = MediaBarState.Loading
+
+			// Try Tentacle hero items first
+			try {
+				val tentacleAvailable = withTimeoutOrNull(2000L) {
+					tentacleRepository.checkAvailable()
+				} ?: false
+
+				if (tentacleAvailable) {
+					val heroItems = withTimeoutOrNull(3000L) {
+						tentacleRepository.getHeroItems()
+					}
+
+					if (!heroItems.isNullOrEmpty()) {
+						serverApiClients[null] = api
+						items = heroItems.mapNotNull { item ->
+							val backdropTag = item.backdropImageTags?.firstOrNull()
+							val logoTag = item.imageTags?.get(ImageType.LOGO)
+
+							val backdropUrl = backdropTag?.let {
+								api.imageApi.getItemImageUrl(
+									itemId = item.id,
+									imageType = ImageType.BACKDROP,
+									tag = it,
+									maxWidth = 1920,
+									quality = 90
+								)
+							} ?: return@mapNotNull null
+
+							val logoUrl = logoTag?.let {
+								api.imageApi.getItemImageUrl(
+									itemId = item.id,
+									imageType = ImageType.LOGO,
+									tag = it,
+									maxWidth = 800,
+								)
+							}
+
+							MediaBarSlideItem(
+								itemId = item.id,
+								serverId = null,
+								title = item.name ?: "",
+								overview = item.overview,
+								backdropUrl = backdropUrl,
+								logoUrl = logoUrl,
+								rating = item.officialRating,
+								year = item.productionYear,
+								genres = item.genres?.take(3) ?: emptyList(),
+								runtime = item.runTimeTicks?.let { it / 10000 },
+								criticRating = item.criticRating?.toInt(),
+								communityRating = item.communityRating,
+								itemType = item.type ?: BaseItemKind.MOVIE,
+							)
+						}
+
+						if (items.isNotEmpty()) {
+							_state.value = MediaBarState.Ready(items)
+							preloadAdjacentImages(0)
+							startAutoPlay()
+							startTrailerResolution(0)
+							preResolveAdjacentTrailers(0)
+							return@launch
+						}
+					}
+				}
+			} catch (e: Exception) {
+				Timber.d("MediaBar: Tentacle hero not available, falling through to other sources")
+			}
 
 			val pluginSyncEnabled = userPreferences[UserPreferences.pluginSyncEnabled]
 			val mediaBarSourceType = userSettingPreferences[UserSettingPreferences.mediaBarSourceType]

@@ -101,7 +101,6 @@ import org.jellyfin.androidtv.ui.playback.MediaManager
 import org.jellyfin.androidtv.ui.playback.PlaybackLauncher
 import org.jellyfin.androidtv.ui.playback.PrePlaybackTrackSelector
 import org.jellyfin.androidtv.ui.playback.ThemeMusicPlayer
-import org.jellyfin.androidtv.ui.playlist.showAddToPlaylistDialog
 import org.jellyfin.androidtv.ui.shared.toolbar.LeftSidebarNavigation
 import org.jellyfin.androidtv.ui.shared.toolbar.Navbar
 import org.jellyfin.androidtv.ui.shared.toolbar.NavbarActiveButton
@@ -1265,14 +1264,6 @@ class ItemDetailsFragment : Fragment() {
 						onClick = { viewModel.toggleFavorite() },
 						isActive = item.userData?.isFavorite == true,
 						activeColor = Color(0xFFFF4757),
-					)
-				}
-
-				if (item.userData != null && item.type != BaseItemKind.PERSON) {
-					DetailActionButton(
-						label = stringResource(R.string.lbl_playlist),
-						icon = ImageVector.vectorResource(R.drawable.ic_add),
-						onClick = { showAddToPlaylistDialog(requireContext(), item.id) },
 					)
 				}
 
