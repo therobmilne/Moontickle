@@ -71,9 +71,11 @@ class MainActivity : FragmentActivity() {
 			}
 
 			// We're on the home screen with no back history
-			// Find the HomeFragment via the DestinationFragmentView's fragment tag
-			val homeFragment = supportFragmentManager.findFragmentByTag("content")
-				as? org.jellyfin.androidtv.ui.home.HomeFragment
+			// Search all fragments (including children) since DestinationFragmentView may not use a predictable tag
+			val homeFragment = supportFragmentManager.fragments
+				.flatMap { listOf(it) + it.childFragmentManager.fragments }
+				.filterIsInstance<org.jellyfin.androidtv.ui.home.HomeFragment>()
+				.firstOrNull()
 
 			if (homeFragment != null) {
 				val rowsFragment = homeFragment.childFragmentManager

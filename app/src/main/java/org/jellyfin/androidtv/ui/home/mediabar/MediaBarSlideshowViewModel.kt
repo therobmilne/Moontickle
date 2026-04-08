@@ -359,12 +359,12 @@ class MediaBarSlideshowViewModel(
 
 			// Try Tentacle hero items first
 			try {
-				val tentacleAvailable = withTimeoutOrNull(2000L) {
+				val tentacleAvailable = withTimeoutOrNull(5000L) {
 					tentacleRepository.checkAvailable()
 				} ?: false
 
 				if (tentacleAvailable) {
-					val heroItems = withTimeoutOrNull(3000L) {
+					val heroItems = withTimeoutOrNull(8000L) {
 						tentacleRepository.getHeroItems()
 					}
 

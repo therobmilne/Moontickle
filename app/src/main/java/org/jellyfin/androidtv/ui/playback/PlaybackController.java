@@ -917,7 +917,24 @@ public class PlaybackController implements PlaybackControllerNotifiable {
             mVideoManager.setMediaStreamInfo(subtitleApi, response);
         }
 
+        // Safety flag — tracks whether applyMediaSegments callback has fired
+        final boolean[] playbackStarted = {false};
+
+        // Safety timer — if applyMediaSegments hangs or fails, force-start playback after 3 seconds
+        mHandler.postDelayed(() -> {
+            if (!playbackStarted[0] && mVideoManager != null) {
+                Timber.w("applyMediaSegments callback didn't fire in 3s — force-starting playback");
+                mVideoManager.start();
+                playbackStarted[0] = true;
+                dataRefreshService.getValue().setLastPlayedItem(item);
+                reportingHelper.getValue().reportStart(mFragment, PlaybackController.this, item, response, mbPos, false);
+            }
+        }, 3000);
+
         PlaybackControllerHelperKt.applyMediaSegments(this, item, () -> {
+            if (playbackStarted[0]) return null; // Safety timer already started playback
+            playbackStarted[0] = true;
+
             // Set video start delay
             long videoStartDelay = userPreferences.getValue().get(UserPreferences.Companion.getVideoStartDelay());
             if (videoStartDelay > 0) {

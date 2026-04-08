@@ -228,7 +228,7 @@ class HomeRowsFragment : RowsSupportFragment(), AudioEventListener, View.OnKeyLi
 										}
 									}
 									"builtin" -> {
-										addBuiltInSection(rows, section.sectionId ?: continue, includeLiveTvRows, cachedViews, mergeCW)
+										addBuiltInSection(rows, section.sectionId ?: continue, includeLiveTvRows, cachedViews, mergeCW, tentacleActive = true)
 									}
 								}
 							}
@@ -502,6 +502,7 @@ class HomeRowsFragment : RowsSupportFragment(), AudioEventListener, View.OnKeyLi
 		includeLiveTvRows: Boolean,
 		cachedViews: Collection<org.jellyfin.sdk.model.api.BaseItemDto>?,
 		mergeContinueWatching: Boolean,
+		tentacleActive: Boolean = false,
 	) {
 		when (sectionId) {
 			"mediabar" -> { /* Already handled by separate toggle */ }
@@ -519,10 +520,13 @@ class HomeRowsFragment : RowsSupportFragment(), AudioEventListener, View.OnKeyLi
 				if (!mergeContinueWatching) rows.add(helper.loadNextUp())
 			}
 			"playlists" -> {
-				val row = helper.loadPlaylists()
-				if (row is HomeFragmentPlaylistsRow) {
-					this@HomeRowsFragment.playlistsRow = row
-					rows.add(row)
+				// When Tentacle is active, skip native playlists (Tentacle provides its own playlist rows)
+				if (!tentacleActive) {
+					val row = helper.loadPlaylists()
+					if (row is HomeFragmentPlaylistsRow) {
+						this@HomeRowsFragment.playlistsRow = row
+						rows.add(row)
+					}
 				}
 			}
 			"livetv" -> if (includeLiveTvRows) {

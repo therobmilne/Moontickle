@@ -82,6 +82,8 @@ class DiscoverFragment : Fragment() {
 	private val tentacleRepository by inject<TentacleRepository>()
 	private val navigationRepository by inject<NavigationRepository>()
 
+
+
 	override fun onCreateView(
 		inflater: LayoutInflater,
 		container: ViewGroup?,
@@ -130,6 +132,7 @@ class DiscoverFragment : Fragment() {
 					SearchTextInput(
 						query = searchQuery,
 						onQueryChange = { searchQuery = it },
+						placeholder = "Search movies and shows...",
 						onQuerySubmit = {
 							if (searchQuery.isNotBlank()) {
 								searchJob?.cancel()
@@ -443,6 +446,28 @@ private fun DiscoverCard(
 }
 
 private data class MonitorOption(val key: String, val label: String)
+
+/** Trigger a Jellyfin library scan so newly added content appears after Radarr/Sonarr download. */
+private fun triggerLibraryScan(scope: kotlinx.coroutines.CoroutineScope) {
+	scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+		try {
+			val apiClient = org.koin.java.KoinJavaComponent.get<org.jellyfin.sdk.api.client.ApiClient>(org.jellyfin.sdk.api.client.ApiClient::class.java)
+			val baseUrl = apiClient.baseUrl
+			val token = apiClient.accessToken
+			if (baseUrl != null && token != null) {
+				val request = okhttp3.Request.Builder()
+					.url("$baseUrl/Library/Refresh")
+					.post(okhttp3.RequestBody.create(null, ByteArray(0)))
+					.header("Authorization", "MediaBrowser Token=\"$token\"")
+					.build()
+				okhttp3.OkHttpClient().newCall(request).execute().close()
+				timber.log.Timber.i("Triggered library scan after adding content")
+			}
+		} catch (e: Exception) {
+			timber.log.Timber.w(e, "Failed to trigger library scan")
+		}
+	}
+}
 
 private val MONITOR_OPTIONS = listOf(
 	MonitorOption("all", "All Episodes"),
@@ -882,6 +907,7 @@ private fun DiscoverDetailDialog(
 															result.failed > 0 -> "Radarr rejected the request"
 															else -> "Failed to add"
 														}
+														if (result.added > 0) triggerLibraryScan(scope)
 													}
 												}
 											},
@@ -937,6 +963,7 @@ private fun DiscoverDetailDialog(
 																result.failed > 0 -> "Sonarr rejected the request"
 																else -> "Failed to add"
 															}
+															if (result.added > 0) triggerLibraryScan(scope)
 														}
 													}
 												}
