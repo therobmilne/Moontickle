@@ -2225,8 +2225,17 @@ class ItemDetailsFragment : Fragment() {
 					viewModel.effectiveApi.libraryApi.deleteItem(itemId = item.id)
 				}
 			} catch (e: ApiClientException) {
-				Timber.e(e, "Failed to delete item ${item.name} (id=${item.id})")
-				Toast.makeText(requireContext(), getString(R.string.item_deletion_failed, item.name), Toast.LENGTH_LONG).show()
+				Timber.e(e, "Failed to delete item ${item.name} (id=${item.id}), cause: ${e.message}")
+				val msg = if (e.message?.contains("403") == true || e.message?.contains("Forbidden") == true) {
+					"Delete permission not enabled. Go to Jellyfin Dashboard → Users → your user → Allow media deletion"
+				} else {
+					getString(R.string.item_deletion_failed, item.name) + ": ${e.message}"
+				}
+				Toast.makeText(requireContext(), msg, Toast.LENGTH_LONG).show()
+				return@launch
+			} catch (e: Exception) {
+				Timber.e(e, "Unexpected error deleting item ${item.name} (id=${item.id})")
+				Toast.makeText(requireContext(), getString(R.string.item_deletion_failed, item.name) + ": ${e.message}", Toast.LENGTH_LONG).show()
 				return@launch
 			}
 			dataRefreshService.lastDeletedItemId = item.id

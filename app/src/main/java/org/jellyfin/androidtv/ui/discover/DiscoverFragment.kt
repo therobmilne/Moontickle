@@ -130,6 +130,7 @@ class DiscoverFragment : Fragment() {
 					SearchTextInput(
 						query = searchQuery,
 						onQueryChange = { searchQuery = it },
+						placeholder = "Search movies and shows...",
 						onQuerySubmit = {
 							if (searchQuery.isNotBlank()) {
 								searchJob?.cancel()

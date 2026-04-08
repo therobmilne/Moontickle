@@ -516,17 +516,6 @@ private fun CollapsibleSidebarContent(
 				}
 
 				SidebarIconItem(
-					icon = ImageVector.vectorResource(R.drawable.ic_add),
-					label = stringResource(R.string.lbl_add_media),
-					showLabel = isExpanded,
-					isExpanded = isExpanded,
-					onClick = {
-						navigationRepository.navigate(Destinations.tentacleDiscover)
-					}
-				)
-				Spacer(modifier = Modifier.height(2.dp))
-
-				SidebarIconItem(
 					icon = ImageVector.vectorResource(R.drawable.ic_get_app),
 					label = stringResource(R.string.lbl_downloads),
 					showLabel = isExpanded,

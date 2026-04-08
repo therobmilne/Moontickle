@@ -4,6 +4,7 @@ import androidx.lifecycle.coroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import android.widget.Toast
 import org.jellyfin.androidtv.util.getActivity
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.extensions.liveTvApi
@@ -11,6 +12,7 @@ import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.SeriesTimerInfoDto
 import org.jellyfin.sdk.model.api.TimerInfoDto
 import org.koin.android.ext.android.inject
+import timber.log.Timber
 import java.util.UUID
 
 fun SeriesTimerInfoDto.copyWithPrePaddingSeconds(
@@ -50,6 +52,14 @@ fun RecordPopup.updateSeriesTimer(
 			}
 		}.onSuccess {
 			callback()
+		}.onFailure { e ->
+			Timber.e(e, "Failed to create/update series timer")
+			val msg = if (e.message?.contains("denied", ignoreCase = true) == true) {
+				"Recording failed. Configure recording path in Jellyfin Dashboard > Live TV > DVR."
+			} else {
+				"Recording failed: ${e.message}"
+			}
+			Toast.makeText(mContext, msg, Toast.LENGTH_LONG).show()
 		}
 	}
 }
@@ -69,6 +79,14 @@ fun RecordPopup.updateTimer(
 			}
 		}.onSuccess {
 			callback()
+		}.onFailure { e ->
+			Timber.e(e, "Failed to create/update timer")
+			val msg = if (e.message?.contains("denied", ignoreCase = true) == true) {
+				"Recording failed. Configure recording path in Jellyfin Dashboard > Live TV > DVR."
+			} else {
+				"Recording failed: ${e.message}"
+			}
+			Toast.makeText(mContext, msg, Toast.LENGTH_LONG).show()
 		}
 	}
 }

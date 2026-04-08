@@ -6,6 +6,7 @@ import static org.koin.java.KoinJavaComponent.inject;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.os.Handler;
+import android.os.Looper;
 import android.view.Display;
 import android.view.WindowManager;
 
@@ -132,7 +133,7 @@ public class PlaybackController implements PlaybackControllerNotifiable {
             mCurrentIndex = startIndex;
         }
         mFragment = fragment;
-        mHandler = new Handler();
+        mHandler = new Handler(Looper.getMainLooper());
 
         interactionTracker = lazyInteractionTracker.getValue();
 
@@ -813,8 +814,7 @@ public class PlaybackController implements PlaybackControllerNotifiable {
                 public void onError(Exception exception) {
                     if (!isActive()) return;
                     Timber.e(exception, "Unable to get stream info for internal player");
-                    if (mVideoManager == null)
-                        return;
+                    handlePlaybackInfoError(exception);
                 }
             });
         }
@@ -854,6 +854,8 @@ public class PlaybackController implements PlaybackControllerNotifiable {
         mStartPosition = position;
         mCurrentStreamInfo = response;
         mCurrentOptions.setMediaSourceId(response.getMediaSource().getId());
+
+        Timber.i("startItem: URL=%s | PlayMethod=%s | MediaSourceId=%s", response.getMediaUrl(), response.getPlayMethod(), response.getMediaSource().getId());
 
         if (response.getMediaUrl() == null) {
             // If baking subtitles doesn't work (e.g. no permissions to transcode), disable them
@@ -917,7 +919,27 @@ public class PlaybackController implements PlaybackControllerNotifiable {
             mVideoManager.setMediaStreamInfo(subtitleApi, response);
         }
 
+        // Safety timer: force-start playback if applyMediaSegments callback doesn't fire within 3s
+        final boolean[] playbackStarted = {false};
+        mHandler.postDelayed(() -> {
+            if (!playbackStarted[0] && mVideoManager != null && mPlaybackState == PlaybackState.BUFFERING) {
+                Timber.w("Safety timer: applyMediaSegments callback did not fire in 3s — force-starting playback");
+                mVideoManager.start();
+                playbackStarted[0] = true;
+                dataRefreshService.getValue().setLastPlayedItem(item);
+                reportingHelper.getValue().reportStart(mFragment, PlaybackController.this, item, response, mbPos, false);
+            }
+        }, 3000);
+
         PlaybackControllerHelperKt.applyMediaSegments(this, item, () -> {
+            if (playbackStarted[0]) return null; // safety timer already started playback
+            playbackStarted[0] = true;
+
+            if (mVideoManager == null) {
+                Timber.w("mVideoManager is null in applyMediaSegments callback — cannot start playback");
+                return null;
+            }
+
             // Set video start delay
             long videoStartDelay = userPreferences.getValue().get(UserPreferences.Companion.getVideoStartDelay());
             if (videoStartDelay > 0) {
@@ -1593,7 +1615,14 @@ public class PlaybackController implements PlaybackControllerNotifiable {
         } else {
             String msg = mFragment.getString(R.string.video_error_unknown_error);
             Timber.e("Playback error - %s", msg);
+            Utils.showToast(mFragment.getContext(), msg);
         }
+
+        // Log stream info for debugging (especially STRM files)
+        if (mCurrentStreamInfo != null) {
+            Timber.e("Stream URL: %s | PlayMethod: %s", mCurrentStreamInfo.getMediaUrl(), mCurrentStreamInfo.getPlayMethod());
+        }
+
         playerErrorEncountered();
     }
 

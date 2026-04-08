@@ -53,7 +53,6 @@ import org.jellyfin.androidtv.ui.itemhandling.BaseRowItem
 import org.jellyfin.androidtv.ui.itemhandling.ItemLauncher
 import org.jellyfin.androidtv.ui.itemhandling.ItemRowAdapter
 import org.jellyfin.androidtv.ui.itemhandling.refreshItem
-import org.jellyfin.androidtv.ui.home.mediabar.MediaBarSlideshowViewModel
 import org.jellyfin.androidtv.ui.navigation.NavigationRepository
 import org.jellyfin.androidtv.ui.playback.AudioEventListener
 import org.jellyfin.androidtv.ui.playback.MediaManager
@@ -92,7 +91,6 @@ class HomeRowsFragment : RowsSupportFragment(), AudioEventListener, View.OnKeyLi
 	private val navigationRepository by inject<NavigationRepository>()
 	private val itemLauncher by inject<ItemLauncher>()
 	private val keyProcessor by inject<KeyProcessor>()
-	private val mediaBarViewModel by inject<MediaBarSlideshowViewModel>()
 	private val themeMusicPlayer by inject<ThemeMusicPlayer>()
 	private val tentacleRepository by inject<TentacleRepository>()
 
@@ -115,8 +113,6 @@ class HomeRowsFragment : RowsSupportFragment(), AudioEventListener, View.OnKeyLi
 	private val notificationsRow by lazy { NotificationsHomeFragmentRow(lifecycleScope, notificationsRepository) }
 	private val nowPlaying by lazy { HomeFragmentNowPlayingRow(lifecycleScope, playbackManager, mediaManager) }
 	private val liveTVRow by lazy { HomeFragmentLiveTVRow(requireActivity(), userRepository, navigationRepository) }
-	private val mediaBarRow by lazy { HomeFragmentMediaBarRow(lifecycleScope, mediaBarViewModel) }
-
 	// Store rows for refreshing
 	private var currentRows = mutableListOf<HomeFragmentRow>()
 	private var playlistsRow: HomeFragmentPlaylistsRow? = null
@@ -141,7 +137,6 @@ class HomeRowsFragment : RowsSupportFragment(), AudioEventListener, View.OnKeyLi
 		// Create presenter selector to handle different row types
 		val presenterSelector = ClassPresenterSelector().apply {
 			addClassPresenter(ListRow::class.java, rowPresenter)
-			addClassPresenter(MediaBarRow::class.java, MediaBarPresenter(mediaBarViewModel, navigationRepository))
 		}
 
 		adapter = MutableObjectAdapter<Row>(presenterSelector)
@@ -180,11 +175,6 @@ class HomeRowsFragment : RowsSupportFragment(), AudioEventListener, View.OnKeyLi
 
 			// Check for coroutine cancellation
 			if (!isActive) return@launch
-
-			// Add media bar row if enabled in Moonfin settings (not part of configurable sections)
-			if (userSettingPreferences[UserSettingPreferences.mediaBarEnabled]) {
-				rows.add(mediaBarRow)
-			}
 
 			// Try to load Tentacle dashboard sections (plugin-controlled row order)
 			val tentacleAvailable = kotlinx.coroutines.withTimeoutOrNull(3000L) {
@@ -232,7 +222,7 @@ class HomeRowsFragment : RowsSupportFragment(), AudioEventListener, View.OnKeyLi
 									}
 								}
 							}
-							tentacleRowsLoaded = rows.size > (if (userSettingPreferences[UserSettingPreferences.mediaBarEnabled]) 1 else 0)
+							tentacleRowsLoaded = rows.isNotEmpty()
 						}
 					}
 				}
@@ -454,13 +444,8 @@ class HomeRowsFragment : RowsSupportFragment(), AudioEventListener, View.OnKeyLi
 			// Re-retrieve rows that have pending change triggers (e.g. Resume, Next Up, Latest)
 			// but don't force-refresh static rows like Views/My Media to avoid resetting selection
 			refreshRows(delayed = true)
-			
-			// Reload media bar with fresh random items when returning to home
-			mediaBarViewModel.loadInitialContent()
 		} else {
 			justLoaded = false
-			// Load initial content on first load
-			mediaBarViewModel.loadInitialContent()
 		}
 
 		// Update audio queue
@@ -597,10 +582,7 @@ class HomeRowsFragment : RowsSupportFragment(), AudioEventListener, View.OnKeyLi
 				// Cancel any pending theme music playback
 				themeMusicPlayer.cancelDelayedPlay()
 				
-				// Don't clear background if we're on the media bar row - it has its own backdrop
-				if (row !is MediaBarRow) {
-					backgroundService.clearBackgrounds()
-				}
+				backgroundService.clearBackgrounds()
 			} else {
 				currentItem = item
 				currentRow = row as ListRow

@@ -489,6 +489,16 @@ public class LiveTvGuideFragment extends Fragment implements LiveTvGuide, View.O
                 mDisplayProgramsTask = new DisplayProgramsTask();
                 mDisplayProgramsTask.execute(mCurrentDisplayChannelStartNdx, mCurrentDisplayChannelEndNdx);
             }
+
+            @Override
+            public void onError(Exception exception) {
+                if (!isActive()) return;
+                Timber.e(exception, "Failed to load EPG guide data");
+                if (getContext() != null) {
+                    org.jellyfin.androidtv.util.Utils.showToast(getContext(), "Failed to load guide. Tap to retry.");
+                }
+                mChannelStatus.setText("Failed to load guide data");
+            }
         });
     }
 

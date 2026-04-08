@@ -108,10 +108,12 @@ class ActivityFragment : Fragment() {
 						)
 					}
 				} else {
-					val downloads = activity?.downloads.orEmpty()
+					val allDownloads = activity?.downloads.orEmpty().reversed()
+					val recentlyCompleted = allDownloads.filter { it.status == "completed" || it.status == "imported" }
+					val downloads = allDownloads.filter { it.status != "completed" && it.status != "imported" }
 					val unreleased = activity?.unreleased.orEmpty()
 
-					if (downloads.isEmpty() && unreleased.isEmpty()) {
+					if (downloads.isEmpty() && unreleased.isEmpty() && recentlyCompleted.isEmpty()) {
 						Box(
 							modifier = Modifier
 								.fillMaxSize()
@@ -133,6 +135,11 @@ class ActivityFragment : Fragment() {
 							contentPadding = PaddingValues(vertical = 16.dp),
 							verticalArrangement = Arrangement.spacedBy(24.dp),
 						) {
+							if (recentlyCompleted.isNotEmpty()) {
+								item(key = "recently_completed") {
+									DownloadsRow(recentlyCompleted, title = "Recently Completed")
+								}
+							}
 							if (downloads.isNotEmpty()) {
 								item(key = "downloads") {
 									DownloadsRow(downloads)
@@ -152,10 +159,10 @@ class ActivityFragment : Fragment() {
 }
 
 @Composable
-private fun DownloadsRow(downloads: List<ActivityDownload>) {
+private fun DownloadsRow(downloads: List<ActivityDownload>, title: String = "Downloading") {
 	Column(modifier = Modifier.focusGroup()) {
 		Text(
-			text = "Downloading",
+			text = title,
 			fontSize = 20.sp,
 			fontWeight = FontWeight.Bold,
 			color = Color.White,

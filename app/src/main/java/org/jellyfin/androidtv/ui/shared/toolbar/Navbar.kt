@@ -449,15 +449,6 @@ private fun Navbar(
 				}
 
 				ExpandableIconButton(
-					icon = ImageVector.vectorResource(R.drawable.ic_add),
-					label = stringResource(R.string.lbl_add_media),
-					onClick = {
-						navigationRepository.navigate(Destinations.tentacleDiscover)
-					},
-					colors = toolbarButtonColors,
-				)
-
-				ExpandableIconButton(
 					icon = ImageVector.vectorResource(R.drawable.ic_get_app),
 					label = stringResource(R.string.lbl_downloads),
 					onClick = {

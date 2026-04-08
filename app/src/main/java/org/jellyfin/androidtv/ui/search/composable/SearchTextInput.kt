@@ -3,6 +3,7 @@ package org.jellyfin.androidtv.ui.search.composable
 import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
@@ -38,6 +39,7 @@ import org.jellyfin.androidtv.ui.base.Icon
 import org.jellyfin.androidtv.ui.base.JellyfinTheme
 import org.jellyfin.androidtv.ui.base.LocalTextStyle
 import org.jellyfin.androidtv.ui.base.ProvideTextStyle
+import org.jellyfin.androidtv.ui.base.Text
 
 @Composable
 fun SearchTextInput(
@@ -45,17 +47,16 @@ fun SearchTextInput(
 	onQueryChange: (query: String) -> Unit,
 	onQuerySubmit: () -> Unit,
 	modifier: Modifier = Modifier,
+	placeholder: String = "",
 ) {
 	val interactionSource = remember { MutableInteractionSource() }
 	val focused by interactionSource.collectIsFocusedAsState()
 	val keyboardController = LocalSoftwareKeyboardController.current
 	var isEditing by remember { mutableStateOf(false) }
-	var isFirstFocus by remember { mutableStateOf(true) }
 
-	// Auto-open keyboard on first focus
+	// Auto-open keyboard on every focus
 	LaunchedEffect(focused) {
-		if (focused && isFirstFocus) {
-			isFirstFocus = false
+		if (focused) {
 			isEditing = true
 		}
 	}
@@ -80,7 +81,7 @@ fun SearchTextInput(
 						true
 					} else false
 				}
-				.onFocusChanged { 
+				.onFocusChanged {
 					if (!it.isFocused) {
 						isEditing = false
 						keyboardController?.hide()
@@ -112,7 +113,16 @@ fun SearchTextInput(
 				) {
 					Icon(ImageVector.vectorResource(R.drawable.ic_search), contentDescription = null)
 					Spacer(Modifier.width(12.dp))
-					innerTextField()
+					Box {
+						if (query.isEmpty() && placeholder.isNotEmpty()) {
+							Text(
+								text = placeholder,
+								color = color.second.copy(alpha = 0.4f),
+								fontSize = 16.sp,
+							)
+						}
+						innerTextField()
+					}
 				}
 			}
 		)

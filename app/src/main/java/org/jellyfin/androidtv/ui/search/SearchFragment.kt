@@ -30,6 +30,9 @@ import androidx.fragment.compose.content
 import androidx.leanback.app.RowsSupportFragment
 import org.jellyfin.androidtv.ui.base.JellyfinTheme
 import org.jellyfin.androidtv.preference.constant.NavbarPosition
+import org.jellyfin.androidtv.ui.base.button.Button
+import org.jellyfin.androidtv.ui.navigation.Destinations
+import org.jellyfin.androidtv.ui.navigation.NavigationRepository
 import org.jellyfin.androidtv.ui.search.composable.SearchTextInput
 import org.jellyfin.androidtv.ui.search.composable.SearchVoiceInput
 import org.jellyfin.androidtv.ui.shared.toolbar.NavbarActiveButton
@@ -52,6 +55,7 @@ class SearchFragment : Fragment() {
 	) = content {
 		JellyfinTheme {
 			val viewModel = koinViewModel<SearchViewModel>()
+			val navigationRepository = koinInject<NavigationRepository>()
 			val searchFragmentDelegate = koinInject<SearchFragmentDelegate> { parametersOf(requireContext()) }
 			var query by rememberSaveable(stateSaver = TextFieldValue.Saver) { mutableStateOf(TextFieldValue()) }
 			val textInputFocusRequester = remember { FocusRequester() }
@@ -102,6 +106,7 @@ class SearchFragment : Fragment() {
 								query = query.copy(text = it)
 								viewModel.searchDebounced(query.text)
 							},
+							placeholder = "Search your library...",
 							onQuerySubmit = {
 								viewModel.searchImmediately(query.text)
 								// Note: We MUST change the focus to somewhere else when the keyboard is submitted because some vendors (like Amazon)
@@ -112,6 +117,14 @@ class SearchFragment : Fragment() {
 								.weight(1f)
 								.focusRequester(textInputFocusRequester),
 						)
+
+						Button(
+							onClick = {
+								navigationRepository.navigate(Destinations.tentacleDiscover)
+							},
+						) {
+							org.jellyfin.androidtv.ui.base.Text("Search Online")
+						}
 					}
 
 				// The leanback code has its own awful focus handling that doesn't work properly with Compose view inteop to workaround this

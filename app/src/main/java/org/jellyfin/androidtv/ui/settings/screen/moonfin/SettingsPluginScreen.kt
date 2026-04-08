@@ -121,17 +121,6 @@ fun SettingsPluginScreen() {
 			)
 		}
 
-		if (jellyseerrSupported) {
-			item {
-				ListButton(
-					leadingContent = { Icon(painterResource(R.drawable.ic_jellyseerr_jellyfish), contentDescription = null) },
-					headingContent = { Text(stringResource(R.string.jellyseerr_settings)) },
-					captionContent = { Text(stringResource(R.string.jellyseerr_settings_description)) },
-					onClick = { router.push(Routes.JELLYSEERR) }
-				)
-			}
-		}
-
 		item {
 			ListButton(
 				leadingContent = { Icon(painterResource(R.drawable.ic_lock), contentDescription = null) },

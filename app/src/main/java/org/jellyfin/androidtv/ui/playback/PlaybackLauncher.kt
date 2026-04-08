@@ -45,6 +45,11 @@ class PlaybackLauncher(
 			else -> false
 		}
 
+	// TODO: Content preview feature for v6
+	// When contentPreviewEnabled preference is true and starting NEW content (not resuming),
+	// seek to 10min mark, play 10s, then navigate back to item details.
+	// Skip for content under 15min runtime.
+
 	@JvmOverloads
 	fun launch(
 		context: Context,
