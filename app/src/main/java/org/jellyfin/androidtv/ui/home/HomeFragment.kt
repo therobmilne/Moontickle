@@ -7,10 +7,6 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.TextView
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
-import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.ComposeView
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
@@ -19,28 +15,33 @@ import androidx.lifecycle.flowWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import coil3.load
 import coil3.request.crossfade
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.jellyfin.androidtv.R
+import org.jellyfin.androidtv.data.repository.TentacleRepository
 import org.jellyfin.androidtv.preference.UserPreferences
 import org.jellyfin.androidtv.preference.UserSettingPreferences
 import org.jellyfin.androidtv.preference.constant.NavbarPosition
-import org.jellyfin.androidtv.ui.InteractionTrackerViewModel
-import org.jellyfin.androidtv.ui.home.mediabar.MediaBarSlideshowViewModel
-import org.jellyfin.androidtv.ui.home.mediabar.TrailerPreviewState
-import org.jellyfin.androidtv.ui.home.mediabar.ExoPlayerTrailerView
 import org.jellyfin.androidtv.ui.shared.toolbar.LeftSidebarNavigation
 import org.jellyfin.androidtv.ui.shared.toolbar.Navbar
 import org.jellyfin.androidtv.ui.shared.toolbar.NavbarActiveButton
+import org.jellyfin.sdk.api.client.ApiClient
+import org.jellyfin.sdk.model.api.BaseItemDto
+import org.jellyfin.sdk.model.api.ImageType
 import org.koin.android.ext.android.inject
-import org.koin.compose.koinInject
 import org.koin.androidx.viewmodel.ext.android.activityViewModel
-import androidx.media3.datasource.HttpDataSource
 import org.jellyfin.androidtv.ui.settings.compat.SettingsViewModel
+import timber.log.Timber
 
 class HomeFragment : Fragment() {
-	private val mediaBarViewModel by inject<MediaBarSlideshowViewModel>()
-	private val interactionTrackerViewModel by inject<InteractionTrackerViewModel>()
+	private val tentacleRepository by inject<TentacleRepository>()
+	private val api by inject<ApiClient>()
 	private val userSettingPreferences by inject<UserSettingPreferences>()
 	private val userPreferences by inject<UserPreferences>()
 	private val settingsViewModel by activityViewModel<SettingsViewModel>()
@@ -50,13 +51,17 @@ class HomeFragment : Fragment() {
 	private var infoRowView: SimpleInfoRowView? = null
 	private var summaryView: TextView? = null
 	private var backgroundImage: ImageView? = null
-	private var trailerWebView: ComposeView? = null
 	private var rowsFragment: HomeRowsFragment? = null
 	private var snowfallView: SnowfallView? = null
 	private var petalfallView: PetalfallView? = null
 	private var leaffallView: LeaffallView? = null
 	private var summerView: SummerView? = null
 	private var halloweenView: HalloweenView? = null
+
+	// Tentacle hero state
+	private var heroItems: List<BaseItemDto> = emptyList()
+	private var heroIndex = 0
+	private var heroRotationJob: Job? = null
 
 	override fun onCreateView(
 		inflater: LayoutInflater,
@@ -70,7 +75,6 @@ class HomeFragment : Fragment() {
 		infoRowView = view.findViewById(R.id.infoRow)
 		summaryView = view.findViewById(R.id.summary)
 		backgroundImage = view.findViewById(R.id.backgroundImage)
-		trailerWebView = view.findViewById(R.id.trailerWebView)
 		snowfallView = view.findViewById(R.id.snowfallView)
 		petalfallView = view.findViewById(R.id.petalfallView)
 		leaffallView = view.findViewById(R.id.leaffallView)
@@ -135,139 +139,132 @@ class HomeFragment : Fragment() {
 		rowsFragment?.selectedItemStateFlow
 			?.flowWithLifecycle(lifecycle, Lifecycle.State.STARTED)
 			?.onEach { state ->
-				titleView?.text = state.title
-				summaryView?.text = state.summary
-				infoRowView?.setItem(state.baseItem)
+				// Only show title/summary/infoRow when hero is not visible
+				if (heroItems.isEmpty()) {
+					titleView?.text = state.title
+					summaryView?.text = state.summary
+					infoRowView?.setItem(state.baseItem)
+				}
 			}
 			?.launchIn(lifecycleScope)
 
 		rowsFragment?.selectedPositionFlow
 			?.flowWithLifecycle(lifecycle, Lifecycle.State.STARTED)
 			?.onEach { position ->
-				updateMediaBarBackground()
+				updateHeroVisibility(position)
 			}
 			?.launchIn(lifecycleScope)
 
-		mediaBarViewModel.state
-			.flowWithLifecycle(lifecycle, Lifecycle.State.STARTED)
-			.onEach { state ->
-				updateMediaBarBackground()
-			}
-			.launchIn(lifecycleScope)
-
-		mediaBarViewModel.isFocused
-			.flowWithLifecycle(lifecycle, Lifecycle.State.STARTED)
-			.onEach { isFocused ->
-				updateMediaBarBackground()
-			}
-			.launchIn(lifecycleScope)
-
-		mediaBarViewModel.playbackState
-			.flowWithLifecycle(lifecycle, Lifecycle.State.STARTED)
-			.onEach {
-				updateMediaBarBackground()
-			}
-			.launchIn(lifecycleScope)
-
-		trailerWebView?.setContent {
-			val trailerState by mediaBarViewModel.trailerState.collectAsState()
-			val previewAudioEnabled = remember { userSettingPreferences[UserSettingPreferences.previewAudioEnabled] }
-			val httpDataSourceFactory = koinInject<HttpDataSource.Factory>()
-
-			val activeInfo = when (val state = trailerState) {
-				is TrailerPreviewState.Buffering -> state.info
-				is TrailerPreviewState.Playing -> state.info
-				else -> null
-			}
-			val showTrailer = trailerState is TrailerPreviewState.Playing
-
-			if (activeInfo?.streamInfo != null) {
-				key(activeInfo.previewKey) {
-					ExoPlayerTrailerView(
-						streamInfo = activeInfo.streamInfo,
-						startSeconds = activeInfo.startSeconds,
-						segments = activeInfo.segments,
-						muted = !previewAudioEnabled,
-						isVisible = showTrailer,
-						onVideoEnded = { mediaBarViewModel.onTrailerEnded() },
-						onVideoReady = { mediaBarViewModel.onTrailerReady() },
-						dataSourceFactory = if (activeInfo.isLocal) httpDataSourceFactory else null,
-					)
-				}
-			}
-		}
-
-		mediaBarViewModel.trailerState
-			.flowWithLifecycle(lifecycle, Lifecycle.State.STARTED)
-			.onEach { trailerState ->
-				val hasTrailer = trailerState is TrailerPreviewState.Buffering ||
-					trailerState is TrailerPreviewState.Playing
-				trailerWebView?.isVisible = hasTrailer && shouldShowMediaBar()
-			}
-			.launchIn(lifecycleScope)
-
-		// Stop trailers when the in-app screensaver activates
-		interactionTrackerViewModel.visible
-			.flowWithLifecycle(lifecycle, Lifecycle.State.STARTED)
-			.onEach { screensaverVisible ->
-				if (screensaverVisible) {
-					mediaBarViewModel.stopTrailer()
-				} else {
-					mediaBarViewModel.restartTrailerForCurrentSlide()
-				}
-			}
-			.launchIn(lifecycleScope)
+		// Load Tentacle hero items
+		loadHeroItems()
 	}
 
-	private fun updateMediaBarBackground() {
-		val state = mediaBarViewModel.state.value
-		val shouldShowMediaBar = shouldShowMediaBar()
-		
-		if (state is org.jellyfin.androidtv.ui.home.mediabar.MediaBarState.Ready && shouldShowMediaBar) {
-			val playbackState = mediaBarViewModel.playbackState.value
-			val currentItem = state.items.getOrNull(playbackState.currentIndex)
-			val backdropUrl = currentItem?.backdropUrl
-			val logoUrl = currentItem?.logoUrl
-			
-			if (backdropUrl != null) {
-				backgroundImage?.isVisible = true
-				backgroundImage?.load(backdropUrl) {
-					crossfade(400)
+	private fun loadHeroItems() {
+		lifecycleScope.launch {
+			try {
+				val items = withContext(Dispatchers.IO) {
+					if (tentacleRepository.checkAvailable()) {
+						tentacleRepository.getHeroItems()
+					} else {
+						emptyList()
+					}
 				}
-			} else {
-				backgroundImage?.isVisible = false
+				heroItems = items
+				Timber.d("Tentacle hero: loaded ${items.size} items")
+				if (items.isNotEmpty()) {
+					heroIndex = 0
+					showHeroItem(items[0])
+					startHeroRotation()
+				}
+			} catch (e: Exception) {
+				Timber.w(e, "Failed to load Tentacle hero items")
+				heroItems = emptyList()
 			}
+		}
+	}
 
-			if (logoUrl != null) {
-				logoView?.isVisible = true
-				logoView?.load(logoUrl) {
-					crossfade(300)
-				}
-			} else {
-				logoView?.isVisible = false
+	private fun showHeroItem(item: BaseItemDto) {
+		val baseUrl = api.baseUrl?.trimEnd('/') ?: return
+		val itemId = item.id
+
+		// Build backdrop URL from Jellyfin image API
+		val backdropTag = item.backdropImageTags?.firstOrNull()
+		val parentBackdropTag = item.parentBackdropImageTags?.firstOrNull()
+		val parentBackdropId = item.parentBackdropItemId
+
+		val backdropUrl = when {
+			backdropTag != null -> "$baseUrl/Items/$itemId/Images/${ImageType.BACKDROP}?maxWidth=1920&quality=90&tag=$backdropTag"
+			parentBackdropTag != null && parentBackdropId != null -> "$baseUrl/Items/$parentBackdropId/Images/${ImageType.BACKDROP}?maxWidth=1920&quality=90&tag=$parentBackdropTag"
+			else -> null
+		}
+
+		// Build logo URL
+		val logoTag = item.imageTags?.get(ImageType.LOGO)
+		val parentLogoTag = item.parentLogoImageTag
+		val parentLogoId = item.parentLogoItemId
+
+		val logoUrl = when {
+			logoTag != null -> "$baseUrl/Items/$itemId/Images/${ImageType.LOGO}?maxWidth=800&tag=$logoTag"
+			parentLogoTag != null && parentLogoId != null -> "$baseUrl/Items/$parentLogoId/Images/${ImageType.LOGO}?maxWidth=800&tag=$parentLogoTag"
+			else -> null
+		}
+
+		if (backdropUrl != null) {
+			backgroundImage?.isVisible = true
+			backgroundImage?.load(backdropUrl) {
+				crossfade(800)
 			}
-			
-			titleView?.isVisible = false
-			infoRowView?.isVisible = false
-			summaryView?.isVisible = false
 		} else {
-			// Ensure trailer overlay cannot linger when media bar is not active.
-			mediaBarViewModel.stopTrailer()
-			trailerWebView?.isVisible = false
+			backgroundImage?.isVisible = false
+		}
 
+		if (logoUrl != null) {
+			logoView?.isVisible = true
+			logoView?.load(logoUrl) {
+				crossfade(300)
+			}
+			titleView?.isVisible = false
+		} else {
+			logoView?.isVisible = false
+			titleView?.isVisible = true
+			titleView?.text = item.name ?: ""
+		}
+
+		infoRowView?.isVisible = false
+		summaryView?.isVisible = false
+	}
+
+	private fun startHeroRotation() {
+		heroRotationJob?.cancel()
+		heroRotationJob = lifecycleScope.launch {
+			while (isActive && heroItems.size > 1) {
+				delay(8000L)
+				heroIndex = (heroIndex + 1) % heroItems.size
+				showHeroItem(heroItems[heroIndex])
+			}
+		}
+	}
+
+	private fun updateHeroVisibility(selectedPosition: Int) {
+		val showHero = heroItems.isNotEmpty() && selectedPosition <= 0
+		if (showHero) {
+			if (heroItems.isNotEmpty()) {
+				showHeroItem(heroItems[heroIndex])
+			}
+			startHeroRotation()
+		} else {
+			heroRotationJob?.cancel()
 			backgroundImage?.isVisible = false
 			logoView?.isVisible = false
 			titleView?.isVisible = true
 			infoRowView?.isVisible = true
 			summaryView?.isVisible = true
+			// Restore the selected item's info
+			val state = rowsFragment?.selectedItemStateFlow?.value ?: SelectedItemState.EMPTY
+			titleView?.text = state.title
+			summaryView?.text = state.summary
+			infoRowView?.setItem(state.baseItem)
 		}
-	}
-
-	private fun shouldShowMediaBar(): Boolean {
-		val isFocused = mediaBarViewModel.isFocused.value
-		val selectedPosition = rowsFragment?.selectedPositionFlow?.value ?: -1
-		val isMediaBarEnabled = userSettingPreferences[UserSettingPreferences.mediaBarEnabled]
-		return isMediaBarEnabled && (isFocused || selectedPosition == 0)
 	}
 
 	/**
@@ -315,16 +312,19 @@ class HomeFragment : Fragment() {
 
 	override fun onPause() {
 		super.onPause()
-		mediaBarViewModel.stopTrailer()
+		heroRotationJob?.cancel()
 	}
 
 	override fun onResume() {
 		super.onResume()
-		mediaBarViewModel.restartTrailerForCurrentSlide()
+		if (heroItems.isNotEmpty()) {
+			startHeroRotation()
+		}
 	}
 
 	override fun onDestroyView() {
 		super.onDestroyView()
+		heroRotationJob?.cancel()
 		snowfallView?.stopSnowing()
 		petalfallView?.stopFalling()
 		leaffallView?.stopFalling()
@@ -335,7 +335,6 @@ class HomeFragment : Fragment() {
 		summaryView = null
 		infoRowView = null
 		backgroundImage = null
-		trailerWebView = null
 		rowsFragment = null
 		snowfallView = null
 		petalfallView = null

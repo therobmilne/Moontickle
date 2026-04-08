@@ -452,7 +452,7 @@ private fun Navbar(
 					icon = ImageVector.vectorResource(R.drawable.ic_add),
 					label = stringResource(R.string.lbl_add_media),
 					onClick = {
-						navigationRepository.navigate(Destinations.tentacleDiscover)
+						navigationRepository.navigate(Destinations.tentacleDiscover())
 					},
 					colors = toolbarButtonColors,
 				)

@@ -62,10 +62,12 @@ class HomeFragmentPlaylistsRow(
 					fields = ItemRepository.itemFields + ItemFields.CAN_DELETE,
 					imageTypeLimit = 1,
 					limit = 50,
-				).content.items.filter { it.canDelete == true }
+				).content.items
 			}
-			
+
+			Timber.d("Loaded ${items.size} playlists")
 			items.forEach { item ->
+				Timber.d("Playlist: ${item.name} (id=${item.id}, canDelete=${item.canDelete})")
 				adapter.add(BaseItemDtoBaseRowItem(item))
 			}
 		} catch (e: Exception) {

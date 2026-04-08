@@ -108,10 +108,15 @@ class ActivityFragment : Fragment() {
 						)
 					}
 				} else {
-					val downloads = activity?.downloads.orEmpty()
+					val allDownloads = activity?.downloads.orEmpty().reversed()
 					val unreleased = activity?.unreleased.orEmpty()
 
-					if (downloads.isEmpty() && unreleased.isEmpty()) {
+					// Split downloads into active, completed, and needs-attention
+					val downloads = allDownloads.filter { it.status in listOf("downloading", "importing", "queued") }
+					val completed = allDownloads.filter { it.status in listOf("completed", "imported", "done") }
+					val needsAttention = allDownloads.filter { it.status in listOf("failed", "warning", "manual_import", "manual import required") }
+
+					if (allDownloads.isEmpty() && unreleased.isEmpty()) {
 						Box(
 							modifier = Modifier
 								.fillMaxSize()
@@ -133,6 +138,16 @@ class ActivityFragment : Fragment() {
 							contentPadding = PaddingValues(vertical = 16.dp),
 							verticalArrangement = Arrangement.spacedBy(24.dp),
 						) {
+							if (completed.isNotEmpty()) {
+								item(key = "completed") {
+									CompletedRow(completed)
+								}
+							}
+							if (needsAttention.isNotEmpty()) {
+								item(key = "needs_attention") {
+									NeedsAttentionRow(needsAttention)
+								}
+							}
 							if (downloads.isNotEmpty()) {
 								item(key = "downloads") {
 									DownloadsRow(downloads)
@@ -495,5 +510,169 @@ private fun UnreleasedCard(item: ActivityUnreleased) {
 				color = Color.White.copy(alpha = 0.5f),
 			)
 		}
+	}
+}
+
+@Composable
+private fun CompletedRow(completed: List<ActivityDownload>) {
+	Column(modifier = Modifier.focusGroup()) {
+		Text(
+			text = "Recently Completed",
+			fontSize = 20.sp,
+			fontWeight = FontWeight.Bold,
+			color = Color.White,
+			modifier = Modifier.padding(start = 48.dp, bottom = 12.dp),
+		)
+
+		LazyRow(
+			contentPadding = PaddingValues(horizontal = 48.dp),
+			horizontalArrangement = Arrangement.spacedBy(16.dp),
+		) {
+			items(completed, key = { "completed_${it.tmdbId}_${it.episode}" }) { download ->
+				CompletedCard(download)
+			}
+		}
+	}
+}
+
+@Composable
+private fun CompletedCard(download: ActivityDownload) {
+	var isFocused by remember { mutableStateOf(false) }
+
+	Column(
+		modifier = Modifier
+			.width(150.dp)
+			.onFocusChanged { isFocused = it.isFocused }
+			.focusable(),
+	) {
+		Box(
+			modifier = Modifier
+				.fillMaxWidth()
+				.aspectRatio(2f / 3f)
+				.clip(RoundedCornerShape(8.dp))
+				.background(Color(0xFF1a1a2e))
+				.then(
+					if (isFocused) Modifier.border(3.dp, Color.White, RoundedCornerShape(8.dp))
+					else Modifier
+				)
+		) {
+			if (download.posterPath != null) {
+				AsyncImage(
+					model = "$TMDB_IMAGE_BASE${download.posterPath}",
+					contentDescription = download.title,
+					contentScale = ContentScale.Crop,
+					modifier = Modifier.fillMaxSize(),
+				)
+			}
+
+			// Completed badge
+			Box(
+				modifier = Modifier
+					.align(Alignment.TopEnd)
+					.padding(6.dp)
+					.background(Color(0xCC4CAF50), RoundedCornerShape(4.dp))
+					.padding(horizontal = 6.dp, vertical = 2.dp),
+			) {
+				Text(text = "Completed", fontSize = 10.sp, color = Color.White)
+			}
+		}
+
+		Spacer(modifier = Modifier.height(6.dp))
+
+		Text(
+			text = buildString {
+				append(download.title)
+				if (download.episode.isNotBlank()) append(" \u00b7 ${download.episode}")
+			},
+			fontSize = 13.sp,
+			fontWeight = if (isFocused) FontWeight.Bold else FontWeight.Normal,
+			color = if (isFocused) Color.White else Color.White.copy(alpha = 0.8f),
+			maxLines = 1,
+			overflow = TextOverflow.Ellipsis,
+		)
+	}
+}
+
+@Composable
+private fun NeedsAttentionRow(items: List<ActivityDownload>) {
+	Column(modifier = Modifier.focusGroup()) {
+		Text(
+			text = "Needs Attention",
+			fontSize = 20.sp,
+			fontWeight = FontWeight.Bold,
+			color = Color(0xFFEF4444),
+			modifier = Modifier.padding(start = 48.dp, bottom = 12.dp),
+		)
+
+		LazyRow(
+			contentPadding = PaddingValues(horizontal = 48.dp),
+			horizontalArrangement = Arrangement.spacedBy(16.dp),
+		) {
+			items(items, key = { "attn_${it.tmdbId}_${it.episode}" }) { download ->
+				NeedsAttentionCard(download)
+			}
+		}
+	}
+}
+
+@Composable
+private fun NeedsAttentionCard(download: ActivityDownload) {
+	var isFocused by remember { mutableStateOf(false) }
+
+	Column(
+		modifier = Modifier
+			.width(150.dp)
+			.onFocusChanged { isFocused = it.isFocused }
+			.focusable(),
+	) {
+		Box(
+			modifier = Modifier
+				.fillMaxWidth()
+				.aspectRatio(2f / 3f)
+				.clip(RoundedCornerShape(8.dp))
+				.background(Color(0xFF1a1a2e))
+				.then(
+					if (isFocused) Modifier.border(3.dp, Color.White, RoundedCornerShape(8.dp))
+					else Modifier
+				)
+		) {
+			if (download.posterPath != null) {
+				AsyncImage(
+					model = "$TMDB_IMAGE_BASE${download.posterPath}",
+					contentDescription = download.title,
+					contentScale = ContentScale.Crop,
+					modifier = Modifier.fillMaxSize(),
+				)
+			}
+
+			// Error badge
+			Box(
+				modifier = Modifier
+					.align(Alignment.TopEnd)
+					.padding(6.dp)
+					.background(Color(0xCCEF4444), RoundedCornerShape(4.dp))
+					.padding(horizontal = 6.dp, vertical = 2.dp),
+			) {
+				Text(
+					text = download.status.replaceFirstChar { it.uppercase() },
+					fontSize = 10.sp,
+					color = Color.White,
+				)
+			}
+		}
+
+		Spacer(modifier = Modifier.height(6.dp))
+
+		Text(
+			text = buildString {
+				append(download.title)
+				if (download.episode.isNotBlank()) append(" \u00b7 ${download.episode}")
+			},
+			fontSize = 13.sp,
+			fontWeight = if (isFocused) FontWeight.Bold else FontWeight.Normal,
+			color = if (isFocused) Color.White else Color.White.copy(alpha = 0.8f),
+			maxLines = 1,
+			overflow = TextOverflow.Ellipsis,
+		)
 	}
 }

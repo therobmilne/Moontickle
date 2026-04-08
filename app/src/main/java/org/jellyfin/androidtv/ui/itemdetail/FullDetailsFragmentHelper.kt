@@ -73,12 +73,20 @@ fun FullDetailsFragment.deleteItem(
 			api.libraryApi.deleteItem(item.id)
 		}
 	} catch (error: ApiClientException) {
-		Timber.e(error, "Failed to delete item ${item.name} (id=${item.id})")
-		Toast.makeText(
-			context,
-			getString(R.string.item_deletion_failed, item.name),
-			Toast.LENGTH_LONG
-		).show()
+		val statusCode = error.message?.let {
+			Regex("(\\d{3})").find(it)?.value ?: "unknown"
+		} ?: "unknown"
+		Timber.e(error, "Failed to delete item ${item.name} (id=${item.id}), HTTP $statusCode")
+		val errorMsg = when {
+			error.message?.contains("403") == true -> "Delete failed (HTTP 403): Your Jellyfin account doesn't have delete permission. Enable it in Dashboard > Users > Allow media deletion."
+			error.message?.contains("500") == true -> "Delete failed (HTTP 500): Server error — check filesystem permissions on your media directory."
+			else -> "Delete failed: ${error.message ?: "Unknown error"}"
+		}
+		Toast.makeText(context, errorMsg, Toast.LENGTH_LONG).show()
+		return@launch
+	} catch (error: Exception) {
+		Timber.e(error, "Unexpected error deleting item ${item.name} (id=${item.id})")
+		Toast.makeText(context, "Delete failed: ${error.message ?: "Unknown error"}", Toast.LENGTH_LONG).show()
 		return@launch
 	}
 
@@ -375,6 +383,9 @@ fun FullDetailsFragment.createLiveTvSeriesTimer(
 			}
 		}.onSuccess {
 			callback()
+		}.onFailure { error ->
+			Timber.e(error, "Failed to create series timer")
+			Toast.makeText(requireContext(), "Series recording failed: ${error.message ?: "Unknown error"}", Toast.LENGTH_LONG).show()
 		}
 	}
 }

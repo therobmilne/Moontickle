@@ -229,7 +229,9 @@ object Destinations {
 	)
 
 	// Tentacle features
-	val tentacleDiscover = fragmentDestination<TentacleDiscoverFragment>()
+	fun tentacleDiscover(query: String? = null) = fragmentDestination<TentacleDiscoverFragment>(
+		"query" to query,
+	)
 	val tentacleActivity = fragmentDestination<TentacleActivityFragment>()
 
 	// Jellyseerr

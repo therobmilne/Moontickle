@@ -83,7 +83,7 @@ public class CustomPlaybackTransportControlGlue extends PlaybackTransportControl
     // Injected views
     private TextView mEndsText = null;
 
-    private final Handler mHandler = new Handler();
+    private final Handler mHandler = new Handler(android.os.Looper.getMainLooper());
     private Runnable mRefreshEndTime;
     private Runnable mRefreshViewVisibility;
 

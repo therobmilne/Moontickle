@@ -46,8 +46,17 @@ fun loadLiveTvChannels(fragment: Fragment, callback: (channels: Collection<BaseI
 				).content.items
 			}
 		}.fold(
-			onSuccess = { channels -> callback(channels) },
-			onFailure = { callback(null) },
+			onSuccess = { channels ->
+				timber.log.Timber.d("Loaded ${channels.size} live TV channels")
+				callback(channels)
+			},
+			onFailure = { error ->
+				timber.log.Timber.e(error, "Failed to load live TV channels")
+				try {
+					android.widget.Toast.makeText(fragment.requireContext(), "Failed to load TV channels: ${error.message}", android.widget.Toast.LENGTH_LONG).show()
+				} catch (_: Exception) {}
+				callback(null)
+			},
 		)
 	}
 }
@@ -73,8 +82,17 @@ fun getPrograms(
 				).content.items
 			}
 		}.fold(
-			onSuccess = { programs -> callback(programs) },
-			onFailure = { callback(null) },
+			onSuccess = { programs ->
+				timber.log.Timber.d("Loaded ${programs.size} live TV programs")
+				callback(programs)
+			},
+			onFailure = { error ->
+				timber.log.Timber.e(error, "Failed to load EPG programs")
+				try {
+					android.widget.Toast.makeText(fragment.requireContext(), "Failed to load TV guide: ${error.message}", android.widget.Toast.LENGTH_LONG).show()
+				} catch (_: Exception) {}
+				callback(null)
+			},
 		)
 	}
 }

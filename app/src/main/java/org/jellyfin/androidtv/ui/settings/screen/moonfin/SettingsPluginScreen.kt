@@ -121,7 +121,8 @@ fun SettingsPluginScreen() {
 			)
 		}
 
-		if (jellyseerrSupported) {
+		// Jellyseerr settings hidden — user uses Tentacle instead
+		if (false && jellyseerrSupported) {
 			item {
 				ListButton(
 					leadingContent = { Icon(painterResource(R.drawable.ic_jellyseerr_jellyfish), contentDescription = null) },

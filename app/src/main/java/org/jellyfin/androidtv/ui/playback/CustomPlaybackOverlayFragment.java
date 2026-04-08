@@ -117,7 +117,7 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
     private Animation slideDown;
     private Animation showPopup;
     private Animation hidePopup;
-    private final Handler mHandler = new Handler();
+    private final Handler mHandler = new Handler(android.os.Looper.getMainLooper());
     private Runnable mHideTask;
 
     private AudioManager mAudioManager;

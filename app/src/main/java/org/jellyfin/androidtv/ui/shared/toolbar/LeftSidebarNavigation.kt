@@ -521,7 +521,7 @@ private fun CollapsibleSidebarContent(
 					showLabel = isExpanded,
 					isExpanded = isExpanded,
 					onClick = {
-						navigationRepository.navigate(Destinations.tentacleDiscover)
+						navigationRepository.navigate(Destinations.tentacleDiscover())
 					}
 				)
 				Spacer(modifier = Modifier.height(2.dp))

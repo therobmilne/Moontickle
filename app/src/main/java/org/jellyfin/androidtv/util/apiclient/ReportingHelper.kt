@@ -60,7 +60,7 @@ class ReportingHelper(
 		)
 
 		lifecycleOwner.lifecycleScope.launch(Dispatchers.IO + NonCancellable) {
-			Timber.i("Reporting ${item.name} playback started at $position")
+			Timber.i("Reporting ${item.name} playback started at $position, canSeek=${info.canSeek}, playMethod=${info.playMethod}, mediaSourceId=${info.mediaSourceId}")
 			val itemApi = getApiClientForItem(item)
 			runCatching {
 				itemApi.playStateApi.reportPlaybackStart(info)

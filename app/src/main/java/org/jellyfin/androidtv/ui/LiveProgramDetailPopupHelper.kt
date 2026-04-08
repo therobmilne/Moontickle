@@ -102,6 +102,18 @@ fun LiveProgramDetailPopup.recordProgram(
 			}
 		}.onSuccess { program ->
 			callback(program)
+		}.onFailure { error ->
+			timber.log.Timber.e(error, "Failed to record program $programId")
+			val errorMsg = when {
+				error.message?.contains("500") == true && error.message?.contains("path") == true ->
+					"Recording failed. Configure a recording path in Jellyfin Dashboard > Live TV > DVR."
+				error.message?.contains("403") == true ->
+					"Recording failed: No recording permission."
+				error.message?.contains("UNIQUE") == true ->
+					"Timer already exists for this program."
+				else -> "Recording failed: ${error.message ?: "Unknown error"}"
+			}
+			android.widget.Toast.makeText(mContext, errorMsg, android.widget.Toast.LENGTH_LONG).show()
 		}
 	}
 }
@@ -121,6 +133,16 @@ fun LiveProgramDetailPopup.recordSeries(
 			}
 		}.onSuccess { program ->
 			callback(program)
+		}.onFailure { error ->
+			timber.log.Timber.e(error, "Failed to record series for program $programId")
+			val errorMsg = when {
+				error.message?.contains("500") == true && error.message?.contains("path") == true ->
+					"Series recording failed. Configure a recording path in Jellyfin Dashboard > Live TV > DVR."
+				error.message?.contains("403") == true ->
+					"Series recording failed: No recording permission."
+				else -> "Series recording failed: ${error.message ?: "Unknown error"}"
+			}
+			android.widget.Toast.makeText(mContext, errorMsg, android.widget.Toast.LENGTH_LONG).show()
 		}
 	}
 }

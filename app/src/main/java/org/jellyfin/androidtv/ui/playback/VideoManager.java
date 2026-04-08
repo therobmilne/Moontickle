@@ -77,7 +77,7 @@ public class VideoManager {
     public ExoPlayer mExoPlayer;
     private PlayerView mExoPlayerView;
     private SubtitleView mCustomSubtitleView;
-    private Handler mHandler = new Handler();
+    private Handler mHandler = new Handler(android.os.Looper.getMainLooper());
     private AudioDelayProcessor mAudioDelayProcessor;
     private SubtitleDelayHandler mSubtitleDelayHandler;
 
@@ -185,10 +185,33 @@ public class VideoManager {
         mExoPlayer.addListener(new Player.Listener() {
             @Override
             public void onPlayerError(@NonNull PlaybackException error) {
-                Timber.e(error, "***** Player error: code=%d message=%s", error.errorCode, error.getMessage());
+                String errorType;
+                switch (error.errorCode) {
+                    case PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED:
+                    case PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT:
+                        errorType = "Network error";
+                        break;
+                    case PlaybackException.ERROR_CODE_DECODER_INIT_FAILED:
+                    case PlaybackException.ERROR_CODE_DECODER_QUERY_FAILED:
+                        errorType = "Decoder error (codec not supported)";
+                        break;
+                    case PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS:
+                    case PlaybackException.ERROR_CODE_IO_FILE_NOT_FOUND:
+                    case PlaybackException.ERROR_CODE_IO_UNSPECIFIED:
+                        errorType = "Stream error (source unavailable)";
+                        break;
+                    default:
+                        errorType = "Playback error (code " + error.errorCode + ")";
+                        break;
+                }
+                Timber.e(error, "***** Player error: code=%d type=%s message=%s", error.errorCode, errorType, error.getMessage());
                 if (error.getCause() != null) {
                     Timber.e(error.getCause(), "***** Player error cause");
                 }
+                // Show user-visible error Toast
+                try {
+                    android.widget.Toast.makeText(mActivity, errorType + ": " + error.getMessage(), android.widget.Toast.LENGTH_LONG).show();
+                } catch (Exception ignored) {}
                 if (mPlaybackControllerNotifiable != null) mPlaybackControllerNotifiable.onError();
                 stopProgressLoop();
             }

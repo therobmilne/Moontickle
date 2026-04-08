@@ -50,6 +50,9 @@ fun RecordPopup.updateSeriesTimer(
 			}
 		}.onSuccess {
 			callback()
+		}.onFailure { error ->
+			timber.log.Timber.e(error, "Failed to update series timer")
+			android.widget.Toast.makeText(mContext, "Recording failed: ${error.message ?: "Unknown error"}", android.widget.Toast.LENGTH_LONG).show()
 		}
 	}
 }
@@ -69,6 +72,9 @@ fun RecordPopup.updateTimer(
 			}
 		}.onSuccess {
 			callback()
+		}.onFailure { error ->
+			timber.log.Timber.e(error, "Failed to update timer")
+			android.widget.Toast.makeText(mContext, "Recording failed: ${error.message ?: "Unknown error"}", android.widget.Toast.LENGTH_LONG).show()
 		}
 	}
 }

@@ -104,9 +104,25 @@ class DiscoverFragment : Fragment() {
 			val contentFocusRequester = remember { FocusRequester() }
 			var searchJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
 
+			// Auto-populate search from arguments (e.g. when navigated from Search)
+			val initialQuery = arguments?.getString("query") ?: ""
 			LaunchedEffect(Unit) {
 				sections = tentacleRepository.getDiscoverSections()
 				isLoading = false
+				if (initialQuery.isNotBlank()) {
+					searchQuery = initialQuery
+					isSearching = true
+					hasSearched = true
+					try {
+						val results = kotlinx.coroutines.withTimeoutOrNull(10_000L) {
+							tentacleRepository.searchDiscover(initialQuery)
+						} ?: emptyList()
+						searchResults = results
+					} catch (e: Exception) {
+						timber.log.Timber.w(e, "Auto-search failed for '$initialQuery'")
+					}
+					isSearching = false
+				}
 			}
 
 			// Focus first content row after loading instead of search

@@ -132,7 +132,7 @@ public class PlaybackController implements PlaybackControllerNotifiable {
             mCurrentIndex = startIndex;
         }
         mFragment = fragment;
-        mHandler = new Handler();
+        mHandler = new Handler(android.os.Looper.getMainLooper());
 
         interactionTracker = lazyInteractionTracker.getValue();
 
@@ -855,6 +855,12 @@ public class PlaybackController implements PlaybackControllerNotifiable {
         mCurrentStreamInfo = response;
         mCurrentOptions.setMediaSourceId(response.getMediaSource().getId());
 
+        // Log PlayMethod and stream URL for debugging
+        Timber.i("PlaybackController: PlayMethod=%s, URL=%s, Item=%s",
+                response.getPlayMethod() != null ? response.getPlayMethod().name() : "null",
+                response.getMediaUrl(),
+                item.getName());
+
         if (response.getMediaUrl() == null) {
             // If baking subtitles doesn't work (e.g. no permissions to transcode), disable them
             if (response.getSubtitleDeliveryMethod() == SubtitleDeliveryMethod.ENCODE && (response.getMediaSource().getDefaultSubtitleStreamIndex() == null || response.getMediaSource().getDefaultSubtitleStreamIndex() != -1)) {
@@ -922,12 +928,19 @@ public class PlaybackController implements PlaybackControllerNotifiable {
 
         // Safety timer — if applyMediaSegments hangs or fails, force-start playback after 3 seconds
         mHandler.postDelayed(() -> {
-            if (!playbackStarted[0] && mVideoManager != null) {
-                Timber.w("applyMediaSegments callback didn't fire in 3s — force-starting playback");
-                mVideoManager.start();
-                playbackStarted[0] = true;
-                dataRefreshService.getValue().setLastPlayedItem(item);
-                reportingHelper.getValue().reportStart(mFragment, PlaybackController.this, item, response, mbPos, false);
+            if (!playbackStarted[0]) {
+                if (mVideoManager != null) {
+                    Timber.w("applyMediaSegments callback didn't fire in 3s — force-starting playback");
+                    mVideoManager.start();
+                    playbackStarted[0] = true;
+                    dataRefreshService.getValue().setLastPlayedItem(item);
+                    reportingHelper.getValue().reportStart(mFragment, PlaybackController.this, item, response, mbPos, false);
+                } else {
+                    Timber.w("Safety timer fired but mVideoManager is null — cannot start playback");
+                    if (mFragment != null) {
+                        Utils.showToast(mFragment.getContext(), "Playback failed: video player not ready");
+                    }
+                }
             }
         }, 3000);
 

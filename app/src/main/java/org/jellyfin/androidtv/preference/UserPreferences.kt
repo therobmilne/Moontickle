@@ -357,6 +357,14 @@ class UserPreferences(context: Context) : SharedPreferenceStore(
 		var videoStartDelay = longPreference("video_start_delay", 0)
 
 		/**
+		 * Content preview mode: when enabled, new items play a 10-second preview
+		 * starting at the 10-minute mark, then return to item details.
+		 * Only applies to content > 15 minutes, not resume playback.
+		 * TODO: Implement in PlaybackController for v5.
+		 */
+		var contentPreviewEnabled = booleanPreference("content_preview_enabled", false)
+
+		/**
 		 * The actions to take for each media segment type. Managed by the [MediaSegmentRepository].
 		 */
 		var mediaSegmentActions = stringPreference(
