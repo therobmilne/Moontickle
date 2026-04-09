@@ -4,9 +4,12 @@ import androidx.lifecycle.coroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import android.widget.Toast
+import org.jellyfin.androidtv.R
 import org.jellyfin.androidtv.data.repository.ItemMutationRepository
 import org.jellyfin.androidtv.util.getActivity
 import org.jellyfin.sdk.api.client.ApiClient
+import timber.log.Timber
 import org.jellyfin.sdk.api.client.extensions.liveTvApi
 import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.SeriesTimerInfoDto
@@ -39,6 +42,9 @@ fun LiveProgramDetailPopup.cancelTimer(
 			}
 		}.onSuccess {
 			callback()
+		}.onFailure { e ->
+			Timber.e(e, "Failed to cancel timer $timerId")
+			Toast.makeText(mContext, mContext.getString(R.string.msg_unable_to_cancel) + ": ${e.message}", Toast.LENGTH_LONG).show()
 		}
 	}
 }
@@ -56,6 +62,9 @@ fun LiveProgramDetailPopup.cancelSeriesTimer(
 			}
 		}.onSuccess {
 			callback()
+		}.onFailure { e ->
+			Timber.e(e, "Failed to cancel series timer $seriesTimerId")
+			Toast.makeText(mContext, mContext.getString(R.string.msg_unable_to_cancel) + ": ${e.message}", Toast.LENGTH_LONG).show()
 		}
 	}
 }
@@ -102,6 +111,9 @@ fun LiveProgramDetailPopup.recordProgram(
 			}
 		}.onSuccess { program ->
 			callback(program)
+		}.onFailure { e ->
+			Timber.e(e, "Failed to record program $programId")
+			Toast.makeText(mContext, mContext.getString(R.string.msg_unable_to_create_recording) + ": ${e.message}", Toast.LENGTH_LONG).show()
 		}
 	}
 }
@@ -121,6 +133,9 @@ fun LiveProgramDetailPopup.recordSeries(
 			}
 		}.onSuccess { program ->
 			callback(program)
+		}.onFailure { e ->
+			Timber.e(e, "Failed to record series for program $programId")
+			Toast.makeText(mContext, mContext.getString(R.string.msg_unable_to_create_recording) + ": ${e.message}", Toast.LENGTH_LONG).show()
 		}
 	}
 }
